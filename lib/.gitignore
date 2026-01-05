@@ -1,0 +1,166 @@
+# Heart Zone Trainer - .gitignore
+# Place this file in hr_zone_monitor/ (the Flutter project root)
+
+# =============================================================================
+# CURSOR / IDE
+# =============================================================================
+.cursor/
+.cursorrules
+*.cursorrules
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+
+# =============================================================================
+# FLUTTER / DART
+# =============================================================================
+# Dart tool
+.dart_tool/
+
+# Flutter generated
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+.metadata
+
+# Generated Dart files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# =============================================================================
+# ANDROID
+# =============================================================================
+# Gradle
+android/.gradle/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/captures/
+
+# Generated files
+android/**/GeneratedPluginRegistrant.java
+android/**/GeneratedPluginRegistrant.kt
+android/app/debug/
+android/app/profile/
+android/app/release/
+
+# Signing - CRITICAL: Never commit these!
+android/key.properties
+*.keystore
+*.jks
+*.key
+
+# =============================================================================
+# iOS (if not targeting iOS, can ignore entire folder)
+# =============================================================================
+ios/.symlinks/
+ios/Flutter/.last_build_id
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral/
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets/
+ios/Flutter/flutter_export_environment.sh
+ios/Pods/
+ios/Runner.xcworkspace/xcshareddata/
+ios/Runner.xcworkspace/xcuserdata/
+ios/Runner.xcodeproj/xcuserdata/
+ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+ios/ServiceDefinitions.json
+ios/.generated/
+**/ios/**/DerivedData/
+
+# =============================================================================
+# OTHER PLATFORMS (ignore if not targeting)
+# =============================================================================
+# Uncomment these if you're only building for Android:
+# linux/
+# macos/
+# web/
+# windows/
+
+# =============================================================================
+# SECRETS / ENVIRONMENT
+# =============================================================================
+.env
+*.env
+.env.*
+secrets.dart
+secrets/
+config/secrets/
+
+# =============================================================================
+# BUILD / OUTPUT
+# =============================================================================
+build/
+*.apk
+*.aab
+*.ipa
+*.app
+*.exe
+*.dmg
+*.deb
+*.rpm
+
+# =============================================================================
+# TESTING / COVERAGE
+# =============================================================================
+coverage/
+*.lcov
+test-results/
+.test_coverage/
+
+# =============================================================================
+# MISCELLANEOUS
+# =============================================================================
+# OS generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temp files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# =============================================================================
+# PROJECT SPECIFIC - Development files not for release
+# =============================================================================
+# Spec documents (keep locally, not in repo)
+# specs/
+
+# Build documentation (local reference only)
+# BUILD_AAB.md
+# BUILD_NOTES.md
+# ICON_GENERATION_INSTRUCTIONS.md
+# QUICK_BUILD_COMMANDS.sh
+
+# Figma/Design tools
+# figma-make-code/
+
+# Python scripts (development utilities)
+# generate_icon.py
+
+# DevTools
+devtools_options.yaml

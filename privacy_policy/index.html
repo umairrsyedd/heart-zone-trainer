@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy - Heart Zone Trainer</title>
+    <style>
+        :root {
+            --bg-color: #1A1D21;
+            --text-color: #E5E7EB;
+            --heading-color: #FFFFFF;
+            --accent-color: #4A90A4;
+            --card-bg: #252A31;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.7;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        
+        h1 {
+            color: var(--heading-color);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: var(--accent-color);
+            margin-bottom: 40px;
+        }
+        
+        h2 {
+            color: var(--heading-color);
+            font-size: 1.5rem;
+            margin-top: 40px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--accent-color);
+        }
+        
+        h3 {
+            color: var(--heading-color);
+            font-size: 1.1rem;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+        
+        p {
+            margin-bottom: 16px;
+        }
+        
+        ul {
+            margin-left: 24px;
+            margin-bottom: 16px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        .highlight-box {
+            background-color: var(--card-bg);
+            border-left: 4px solid var(--accent-color);
+            padding: 16px 20px;
+            margin: 20px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .no-collect {
+            color: #EF4444;
+        }
+        
+        .yes-collect {
+            color: #22C55E;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #374151;
+        }
+        
+        th {
+            background-color: var(--card-bg);
+            color: var(--heading-color);
+        }
+        
+        .footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid #374151;
+            text-align: center;
+            color: #6B7280;
+        }
+        
+        a {
+            color: var(--accent-color);
+        }
+        
+        .compatibility {
+            background-color: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .compatibility h3 {
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Privacy Policy</h1>
+        <p class="subtitle">Heart Zone Trainer</p>
+        <p><strong>Last Updated:</strong> January 4, 2026</p>
+
+        <h2>Introduction</h2>
+        <p>Heart Zone Trainer ("we," "our," or "the app") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our mobile application.</p>
+
+        <div class="highlight-box">
+            <strong>Key Point:</strong> All your data stays on your device. We do not operate any servers or collect any data remotely.
+        </div>
+
+        <h2>Information We Collect</h2>
+
+        <h3>Heart Rate Data</h3>
+        <table>
+            <tr>
+                <th>Aspect</th>
+                <th>Details</th>
+            </tr>
+            <tr>
+                <td>What</td>
+                <td>Real-time heart rate measurements from your Bluetooth heart rate monitor</td>
+            </tr>
+            <tr>
+                <td>How</td>
+                <td>Via Bluetooth Low Energy (BLE) connection</td>
+            </tr>
+            <tr>
+                <td>Purpose</td>
+                <td>Display heart rate and calculate training zones</td>
+            </tr>
+            <tr>
+                <td>Storage</td>
+                <td>Processed in real-time only. NOT stored permanently.</td>
+            </tr>
+        </table>
+
+        <h3>User Preferences</h3>
+        <ul>
+            <li>Resting heart rate and maximum heart rate</li>
+            <li>Zone configurations and alert preferences</li>
+            <li>Last connected device information</li>
+        </ul>
+        <p>These are stored <strong>locally on your device only</strong> and never transmitted.</p>
+
+        <h2>Information We Do NOT Collect</h2>
+        <ul>
+            <li class="no-collect">❌ Personal identification (name, email, phone)</li>
+            <li class="no-collect">❌ Location data</li>
+            <li class="no-collect">❌ Usage analytics or tracking</li>
+            <li class="no-collect">❌ Advertising identifiers</li>
+            <li class="no-collect">❌ Any data transmitted to external servers</li>
+        </ul>
+
+        <h2>Data Storage & Security</h2>
+        <div class="highlight-box">
+            All data is stored <strong>locally on your device only</strong>. We do not operate any servers. Your data never leaves your phone.
+        </div>
+        <ul>
+            <li><strong>Heart rate data:</strong> Real-time only, not persisted</li>
+            <li><strong>Preferences:</strong> Stored in Android SharedPreferences (local)</li>
+            <li><strong>Device info:</strong> Stored locally for auto-reconnection</li>
+        </ul>
+
+        <h2>Bluetooth Permissions</h2>
+        <p>The app requires Bluetooth permissions to:</p>
+        <ul>
+            <li>Scan for nearby heart rate monitors</li>
+            <li>Connect to your Bluetooth heart rate device</li>
+            <li>Receive real-time heart rate data</li>
+        </ul>
+        <p>These permissions are used <strong>solely for core functionality</strong>, not for tracking or advertising.</p>
+
+        <div class="compatibility">
+            <h3>Compatible Devices</h3>
+            <p>Heart Zone Trainer works with any Bluetooth Low Energy heart rate monitor, including:</p>
+            <ul>
+                <li>Polar (H10, H9, OH1, Verity Sense)</li>
+                <li>Garmin (HRM-Pro, HRM-Dual, HRM-Run)</li>
+                <li>Wahoo (TICKR, TICKR X, TICKR FIT)</li>
+                <li>Whoop (4.0 and newer)</li>
+                <li>Coospo, Magene, and other BLE HR monitors</li>
+            </ul>
+        </div>
+
+        <h2>Third-Party Services</h2>
+        <p>Heart Zone Trainer does not integrate with any third-party analytics, advertising, or tracking services. We do not share any data with third parties.</p>
+
+        <h2>Children's Privacy</h2>
+        <p>This app is not directed at children under 13. We do not knowingly collect information from children under 13.</p>
+
+        <h2>Data Retention & Deletion</h2>
+        <p>To delete all stored data, simply:</p>
+        <ul>
+            <li>Uninstall the app, OR</li>
+            <li>Clear the app's data in Android Settings</li>
+        </ul>
+
+        <h2>Your Rights</h2>
+        <p>You have the right to:</p>
+        <ul>
+            <li class="yes-collect">✅ Access your data (visible in app settings)</li>
+            <li class="yes-collect">✅ Delete your data (uninstall or clear app data)</li>
+            <li class="yes-collect">✅ Opt out (don't use the app)</li>
+        </ul>
+        <p>Since all data is stored locally and we have no servers, you have complete control.</p>
+
+        <h2>Changes to This Policy</h2>
+        <p>We may update this Privacy Policy from time to time. We will notify you of changes by updating the "Last Updated" date.</p>
+
+        <h2>Contact Us</h2>
+        <p>If you have questions about this Privacy Policy, please contact us at:</p>
+        <p><strong>Email:</strong> <a href="mailto:umair@example.com">umair@example.com</a></p>
+
+        <div class="footer">
+            <p>&copy; 2026 Heart Zone Trainer</p>
+        </div>
+    </div>
+</body>
+</html>
+
