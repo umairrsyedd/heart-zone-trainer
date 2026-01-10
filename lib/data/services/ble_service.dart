@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -387,7 +388,9 @@ class BLEService {
   /// Disconnect from current device
   /// Cancels all subscriptions and stops reconnection attempts
   Future<void> disconnect() async {
-    print('BLE: Disconnecting from device...');
+    if (kDebugMode) {
+      print('BLE: Disconnecting from device...');
+    }
     
     // Cancel subscriptions FIRST to stop receiving data
     _reconnectionTimer?.cancel();
@@ -400,7 +403,9 @@ class BLEService {
     _connectedDevice = null;
 
     _safeAddConnectionState(ConnectionState.disconnected);
-    print('BLE: ✓ Disconnected');
+    if (kDebugMode) {
+      print('BLE: ✓ Disconnected');
+    }
   }
 
   /// Get the currently connected device
@@ -456,7 +461,9 @@ class BLEService {
       await FlutterBluePlus.startScan(
         timeout: scanTimeout,
       );
-      print('BLE: Scan started for reconnect (timeout: ${scanTimeout.inSeconds}s)');
+      if (kDebugMode) {
+        print('BLE: Scan started for reconnect (timeout: ${scanTimeout.inSeconds}s)');
+      }
 
       BluetoothDevice? targetDevice;
 

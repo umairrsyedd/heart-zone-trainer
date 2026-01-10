@@ -8,9 +8,9 @@ Real-time heart rate zone monitoring app for athletes who want to optimize their
 [![Play Store](https://img.shields.io/badge/Play%20Store-Coming%20Soon-green?logo=google-play)](https://play.google.com/store)
 
 <p align="center">
-  <img src="screenshots/home_screen.png" width="250" alt="Home Screen">
-  <img src="screenshots/zone_settings.png" width="250" alt="Zone Settings">
-  <img src="screenshots/alert_management.png" width="250" alt="Alert Management">
+  <img src="assets/screenshots/1.png" width="250" alt="Home Screen">
+  <img src="assets/screenshots/2.png" width="250" alt="Zone Settings">
+  <img src="assets/screenshots/4.png" width="250" alt="Alert Management">
 </p>
 
 ## 🎯 About

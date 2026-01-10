@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_strings.dart';
 
@@ -112,10 +113,10 @@ class AboutScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  _buildCompatibilityItem('• Whoop (4.0 and newer)'),
                   _buildCompatibilityItem('• Polar (H10, H9, OH1, Verity Sense)'),
                   _buildCompatibilityItem('• Garmin (HRM-Pro, HRM-Dual, HRM-Run)'),
                   _buildCompatibilityItem('• Wahoo (TICKR, TICKR X, TICKR FIT)'),
-                  _buildCompatibilityItem('• Whoop (4.0 and newer)'),
                   _buildCompatibilityItem('• Coospo & Magene monitors'),
                   _buildCompatibilityItem('• Any device with BLE Heart Rate Service'),
                 ],
@@ -129,14 +130,20 @@ class AboutScreen extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 TextButton(
-                  onPressed: () {
-                    // TODO: Open privacy policy
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Privacy Policy link not yet implemented'),
-                        backgroundColor: AppColors.warning,
-                      ),
-                    );
+                  onPressed: () async {
+                    final uri = Uri.parse('https://umairrsyedd.github.io/heart-zone-trainer-privacy/');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Unable to open Privacy Policy'),
+                            backgroundColor: AppColors.warning,
+                          ),
+                        );
+                      }
+                    }
                   },
                   child: Text(
                     'Privacy Policy',
@@ -154,14 +161,31 @@ class AboutScreen extends StatelessWidget {
                   ),
                 ),
                 TextButton(
-                  onPressed: () {
-                    // TODO: Open feedback/support
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Send Feedback link not yet implemented'),
-                        backgroundColor: AppColors.warning,
-                      ),
+                  onPressed: () async {
+                    // Create mailto URI with pre-filled subject and body
+                    final email = 'umairrsyedd@gmail.com';
+                    final subject = Uri.encodeComponent('Heart Zone Trainer - Feedback');
+                    final body = Uri.encodeComponent(
+                      'Hi,\n\n'
+                      'App Version: 1.0.0\n\n'
+                      'Please share your feedback, suggestions, or report any issues:\n\n'
+                      '[Your feedback here]\n\n'
+                      'Thank you!',
                     );
+                    final uri = Uri.parse('mailto:$email?subject=$subject&body=$body');
+                    
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    } else {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('No email app found. Please contact umairrsyedd@gmail.com'),
+                            backgroundColor: AppColors.warning,
+                          ),
+                        );
+                      }
+                    }
                   },
                   child: Text(
                     'Send Feedback',

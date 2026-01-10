@@ -12,6 +12,13 @@ import 'zone_provider.dart';
 
 part 'monitoring_provider.g.dart';
 
+// ============================================
+// TEMPORARY: Screenshot Mode - Set to true to force 160 BPM for Zone 3 screenshot
+// TODO: Set back to false after taking screenshot
+const bool _SCREENSHOT_MODE = false;
+const int _SCREENSHOT_BPM = 184;
+// ============================================
+
 /// Provider for current BPM value from monitoring state
 @riverpod
 int? currentBPM(CurrentBPMRef ref) {
@@ -27,17 +34,30 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   StreamSubscription? _connectionSubscription;
   Timer? _autoPauseTimer;
   Timer? _heartRateTimeoutTimer;
+  Timer? _screenshotMockTimer; // Timer for screenshot mode mock BPM injection
   DateTime? _lastHeartRateTime;
   int? _lastValidBPM; // Store last valid (non-zero) BPM
   int? _currentRepeatReminderZone; // Track which zone has active repeat reminders
+  int? _currentRepeatReminderInterval; // Track the interval being used by active timer
 
   @override
   MonitoringState build() {
     final bleService = ref.watch(bleServiceProvider);
     
     // Get initial state synchronously
-    final initialConnectionState = bleService.currentConnectionState;
-    final initialDevice = bleService.connectedDevice;
+    ConnectionState initialConnectionState = bleService.currentConnectionState;
+    String? initialDeviceName = bleService.connectedDevice?.platformName;
+    
+    // ============================================
+    // TEMPORARY: Screenshot Mode - Force connected state
+    if (_SCREENSHOT_MODE) {
+      initialConnectionState = ConnectionState.connected;
+      initialDeviceName = initialDeviceName ?? 'Mock Device';
+      if (kDebugMode) {
+        print('MonitoringProvider: 📸 Screenshot mode enabled - forcing connected state');
+      }
+    }
+    // ============================================
     
     // Load alertsEnabled from preferences (default to true if not loaded yet)
     final prefs = ref.read(preferencesNotifierProvider).value;
@@ -47,21 +67,96 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       print('MonitoringProvider: 🏗️ Building with initial state: $initialConnectionState, alertsEnabled: $initialAlertsEnabled');
     }
     
-    // Watch preferences to sync alertsEnabled when preferences change
+    // Watch preferences to sync alertsEnabled and repeat reminder settings when preferences change
     ref.listen(preferencesNotifierProvider, (previous, next) {
       next.whenData((prefs) {
+        // Sync alertsEnabled
         if (state.alertsEnabled != prefs.alertsEnabled) {
           state = state.copyWith(alertsEnabled: prefs.alertsEnabled);
         }
+        
+        // If repeat reminder interval changed and reminders are active, restart with new interval
+        if (_currentRepeatReminderZone != null && prefs.repeatRemindersEnabled) {
+          // Check if interval changed by comparing with current active interval
+          // This is the most reliable check since we track the actual interval being used
+          final intervalChanged = _currentRepeatReminderInterval != null && 
+                                  _currentRepeatReminderInterval != prefs.repeatIntervalSeconds;
+          
+          // Also check previous value if available (backup check)
+          final previousPrefs = previous?.value;
+          final previousIntervalChanged = previousPrefs != null && 
+                                         previousPrefs.repeatIntervalSeconds != prefs.repeatIntervalSeconds;
+          
+          if (kDebugMode) {
+            print('MonitoringProvider: 🔍 Checking interval change:');
+            print('  - Current active interval: $_currentRepeatReminderInterval');
+            print('  - New interval from prefs: ${prefs.repeatIntervalSeconds}');
+            if (previousPrefs != null) {
+              print('  - Previous interval: ${previousPrefs.repeatIntervalSeconds}');
+            }
+            print('  - Interval changed (tracked): $intervalChanged');
+            print('  - Interval changed (previous): $previousIntervalChanged');
+          }
+          
+          if (intervalChanged || previousIntervalChanged) {
+            if (kDebugMode) {
+              print('MonitoringProvider: 🔄 Repeat reminder interval changed - restarting timer with fresh start time');
+            }
+            // Restart reminders with new interval AND reset zone entry time to now
+            // This ensures the timer starts fresh from the moment of change, not from original entry
+            final currentZone = _currentRepeatReminderZone!;
+            final freshZoneEntryTime = DateTime.now();
+            // Update state with fresh entry time
+            state = state.copyWith(zoneEntryTime: freshZoneEntryTime);
+            _startRepeatRemindersIfEnabled(currentZone, freshZoneEntryTime);
+          }
+          
+          // If repeat reminders were disabled, stop them and reset zone entry time
+          if (previousPrefs != null && 
+              previousPrefs.repeatRemindersEnabled && 
+              !prefs.repeatRemindersEnabled) {
+            if (kDebugMode) {
+              print('MonitoringProvider: 🛑 Repeat reminders disabled in preferences - stopping and resetting timer');
+            }
+            ref.read(alertServiceProvider).stopRepeatReminders();
+            _currentRepeatReminderZone = null;
+            _currentRepeatReminderInterval = null;
+            // Reset zone entry time so timer starts fresh when re-enabled
+            if (state.currentZone != null) {
+              state = state.copyWith(zoneEntryTime: DateTime.now());
+            }
+          }
+          
+          // If repeat reminders were re-enabled, restart with fresh timer
+          if (previousPrefs != null && 
+              !previousPrefs.repeatRemindersEnabled && 
+              prefs.repeatRemindersEnabled &&
+              state.currentZone != null &&
+              state.currentZone != 0 &&
+              prefs.enabledZones.contains(state.currentZone)) {
+            if (kDebugMode) {
+              print('MonitoringProvider: 🔄 Repeat reminders re-enabled - restarting with fresh timer');
+            }
+            // Reset zone entry time to now so timer starts from 0
+            final freshZoneEntryTime = DateTime.now();
+            state = state.copyWith(zoneEntryTime: freshZoneEntryTime);
+            _currentRepeatReminderZone = null; // Reset to allow restart
+            _currentRepeatReminderInterval = null;
+            _startRepeatRemindersIfEnabled(state.currentZone!, freshZoneEntryTime);
+          }
+          
+          // If zone is no longer in enabledZones, stop reminders
+          if (!prefs.enabledZones.contains(_currentRepeatReminderZone)) {
+            if (kDebugMode) {
+              print('MonitoringProvider: 🛑 Zone $_currentRepeatReminderZone no longer in enabledZones - stopping reminders');
+            }
+            ref.read(alertServiceProvider).stopRepeatReminders();
+            _currentRepeatReminderZone = null;
+            _currentRepeatReminderInterval = null;
+          }
+        }
       });
     });
-    
-    // Return initial state with connection info and alertsEnabled from preferences
-    return MonitoringState(
-      connectionState: initialConnectionState,
-      connectedDeviceName: initialDevice?.platformName,
-      alertsEnabled: initialAlertsEnabled,
-    );
     
     // Subscribe to connection state changes
     _connectionSubscription?.cancel(); // Cancel any existing subscription
@@ -121,12 +216,14 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       _heartRateSubscription?.cancel();
       _autoPauseTimer?.cancel();
       _heartRateTimeoutTimer?.cancel();
+      _screenshotMockTimer?.cancel(); // Cancel screenshot mock timer
     });
     
-    // Return initial state
+    // Return initial state with connection info and alertsEnabled from preferences
     return MonitoringState(
       connectionState: initialConnectionState,
-      connectedDeviceName: initialDevice?.platformName,
+      connectedDeviceName: initialDeviceName,
+      alertsEnabled: initialAlertsEnabled,
     );
   }
 
@@ -137,6 +234,22 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   void startMonitoring() async {
     // Cancel any existing subscriptions first
     _heartRateSubscription?.cancel();
+
+    // ============================================
+    // TEMPORARY: Screenshot Mode - Bypass connection check
+    if (_SCREENSHOT_MODE) {
+      // Force connection state and start mock timer
+      state = state.copyWith(
+        connectionState: ConnectionState.connected,
+        connectedDeviceName: state.connectedDeviceName ?? 'Mock Device',
+        isMonitoring: true,
+        lastAppOpenTime: DateTime.now(),
+      );
+      _startScreenshotMockTimer();
+      _handleHeartRateUpdate(_SCREENSHOT_BPM);
+      return; // Skip BLE connection logic
+    }
+    // ============================================
 
     // Always use real BLE service (mock mode removed for production)
     final bleService = ref.read(bleServiceProvider);
@@ -205,6 +318,15 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       lastAppOpenTime: DateTime.now(),
     );
 
+    // ============================================
+    // TEMPORARY: Screenshot Mode - Start mock BPM injection timer
+    if (_SCREENSHOT_MODE) {
+      _startScreenshotMockTimer();
+      // Immediately inject mock BPM
+      _handleHeartRateUpdate(_SCREENSHOT_BPM);
+    }
+    // ============================================
+
     _startAutoPauseTimer();
     _startHeartRateTimeoutCheck();
   }
@@ -213,6 +335,20 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   /// Updates state and triggers zone change alerts if needed
   /// Filters out 0 BPM values and uses last valid BPM instead
   void _handleHeartRateUpdate(int bpm) {
+    // ============================================
+    // TEMPORARY: Screenshot Mode - Override BPM to 160 for Zone 3 screenshot
+    if (_SCREENSHOT_MODE) {
+      bpm = _SCREENSHOT_BPM;
+      // Ensure connection state is connected for screenshot
+      if (state.connectionState != ConnectionState.connected) {
+        state = state.copyWith(
+          connectionState: ConnectionState.connected,
+          connectedDeviceName: state.connectedDeviceName ?? 'Mock Device',
+        );
+      }
+    }
+    // ============================================
+    
     // Filter out 0 BPM - use last valid BPM instead
     if (bpm == 0) {
       if (_lastValidBPM != null) {
@@ -248,20 +384,103 @@ class MonitoringNotifier extends _$MonitoringNotifier {
     // Determine if this is a zone change
     final isZoneChange = previousZone != null && newZone != previousZone;
     final zoneEntryTime = isZoneChange ? DateTime.now() : (state.zoneEntryTime ?? DateTime.now());
+    
+    if (kDebugMode) {
+      print('MonitoringProvider: 💓 HR Update - BPM: $bpm, Zone: $newZone, Previous: $previousZone, isZoneChange: $isZoneChange');
+    }
 
+    // Check if we have active reminders for a zone that no longer matches current zone
+    // This handles cases where zone boundaries changed and user is no longer in that zone
+    if (_currentRepeatReminderZone != null && _currentRepeatReminderZone != newZone) {
+      if (kDebugMode) {
+        print('MonitoringProvider: ⚠️ Active reminders for Zone $_currentRepeatReminderZone but current zone is $newZone - stopping reminders');
+      }
+      ref.read(alertServiceProvider).stopRepeatReminders();
+      _currentRepeatReminderZone = null;
+      _currentRepeatReminderInterval = null;
+    }
+    
     // Check for zone change - only trigger alert if alerts are enabled
     if (isZoneChange) {
       if (state.alertsEnabled) {
         _handleZoneChange(previousZone!, newZone, zoneEntryTime);
       }
     } else if (previousZone == null && newZone != null) {
-      // First time entering a zone - start repeat reminders if enabled
+      // First time entering a zone (app just started monitoring)
+      if (kDebugMode) {
+        print('MonitoringProvider: 🆕 First zone entry detected - Zone $newZone');
+      }
+      
+      // Reset the tracking variable to ensure reminders can start
+      _currentRepeatReminderZone = null;
+      _currentRepeatReminderInterval = null;
+      
       if (state.alertsEnabled) {
+        // Trigger one-time zone announcement (first-time detection, not a zone change)
+        final prefs = ref.read(preferencesNotifierProvider).value;
+        if (prefs != null && prefs.enabledZones.contains(newZone)) {
+          final alertService = ref.read(alertServiceProvider);
+          alertService.triggerZoneChangeAlert(
+            newZone: newZone,
+            alertTypes: prefs.alertTypes,
+            cooldownSeconds: prefs.alertCooldownSeconds,
+            isFirstTime: true, // This is first-time detection, not an actual zone change
+          );
+        }
+        
+        // Start repeat reminders
         _startRepeatRemindersIfEnabled(newZone, zoneEntryTime);
       }
+    } else if (previousZone == newZone && newZone != null) {
+      // Staying in the same zone - verify reminders are still valid
+      // This handles cases where zone boundaries changed but we're still in the same zone number
+      // or where preferences changed (interval, enabled status, etc.)
+      if (_currentRepeatReminderZone == newZone && state.alertsEnabled) {
+        final prefs = ref.read(preferencesNotifierProvider).value;
+        if (prefs != null) {
+          // Check if reminders should still be running
+          final shouldHaveReminders = prefs.repeatRemindersEnabled && 
+                                      prefs.enabledZones.contains(newZone) &&
+                                      newZone != 0;
+          
+          if (!shouldHaveReminders) {
+            // Reminders should not be running - stop them
+            if (kDebugMode) {
+              print('MonitoringProvider: 🛑 Reminders should not be running for Zone $newZone - stopping');
+            }
+            ref.read(alertServiceProvider).stopRepeatReminders();
+            _currentRepeatReminderZone = null;
+            _currentRepeatReminderInterval = null;
+          } else {
+            // Reminders should be running - check if interval changed
+            if (_currentRepeatReminderInterval != null && 
+                _currentRepeatReminderInterval != prefs.repeatIntervalSeconds) {
+              if (kDebugMode) {
+                print('MonitoringProvider: 🔄 Interval changed from ${_currentRepeatReminderInterval}s to ${prefs.repeatIntervalSeconds}s - restarting timer with fresh start time');
+              }
+              // Restart with new interval AND reset zone entry time to now
+              // This ensures the timer starts fresh from the moment of change
+              final freshZoneEntryTime = DateTime.now();
+              state = state.copyWith(zoneEntryTime: freshZoneEntryTime);
+              _startRepeatRemindersIfEnabled(newZone, freshZoneEntryTime);
+            }
+          }
+        }
+      } else if (_currentRepeatReminderZone == null && state.alertsEnabled) {
+        // No reminders running but we should have them - start them
+        final prefs = ref.read(preferencesNotifierProvider).value;
+        if (prefs != null && 
+            prefs.repeatRemindersEnabled && 
+            prefs.enabledZones.contains(newZone) &&
+            newZone != 0) {
+          if (kDebugMode) {
+            print('MonitoringProvider: 🔄 Reminders should be running for Zone $newZone but are not - starting them');
+          }
+          _startRepeatRemindersIfEnabled(newZone, zoneEntryTime);
+        }
+      }
     }
-    // Note: If staying in the same zone, repeat reminders should already be running
-    // Don't restart them on every heart rate update - that would reset the timer
+    // Note: If staying in the same zone and reminders are running correctly, do nothing
 
     final newState = state.copyWith(
       currentBPM: bpm,
@@ -306,6 +525,25 @@ class MonitoringNotifier extends _$MonitoringNotifier {
     });
   }
 
+  /// ============================================
+  /// TEMPORARY: Screenshot Mode - Start mock BPM injection timer
+  /// Periodically injects mock BPM value for screenshot purposes
+  void _startScreenshotMockTimer() {
+    _screenshotMockTimer?.cancel();
+    
+    // Inject mock BPM every 1 second to keep it active
+    _screenshotMockTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_SCREENSHOT_MODE) {
+        _handleHeartRateUpdate(_SCREENSHOT_BPM);
+      } else {
+        // Screenshot mode disabled, cancel timer
+        timer.cancel();
+        _screenshotMockTimer = null;
+      }
+    });
+  }
+  /// ============================================
+
   /// Handle zone change event
   /// Triggers alerts and starts repeat reminders if configured
   /// Only triggers if alerts are enabled in monitoring state
@@ -337,11 +575,13 @@ class MonitoringNotifier extends _$MonitoringNotifier {
 
       // Start repeat reminders if enabled (will stop old ones automatically)
       _currentRepeatReminderZone = null; // Reset so we can start new ones
+      _currentRepeatReminderInterval = null;
       _startRepeatRemindersIfEnabled(toZone, zoneEntryTime);
     } else {
       // Zone changed but alerts not enabled for this zone - stop any existing reminders
       alertService.stopRepeatReminders();
       _currentRepeatReminderZone = null;
+      _currentRepeatReminderInterval = null;
     }
 
     state = state.copyWith(
@@ -352,28 +592,85 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   /// Start repeat reminders if enabled in preferences
   /// Checks preferences and zone enablement before starting
   /// Only starts if not already running for this zone
+  /// Zone 0 (Rest) is explicitly excluded from repeat reminders
   void _startRepeatRemindersIfEnabled(int zone, DateTime zoneEntryTime) {
-    final prefs = ref.read(preferencesNotifierProvider).value;
-    if (prefs == null) return;
+    // Zone 0 (Rest) should never have repeat reminders
+    if (zone == 0) {
+      if (kDebugMode) {
+        print('MonitoringProvider: ⏸️ Zone 0 - Repeat reminders disabled for Rest zone');
+      }
+      return;
+    }
 
-    // Only start if repeat reminders are enabled AND this zone has alerts enabled
-    // AND we're not already running reminders for this zone
+    final prefs = ref.read(preferencesNotifierProvider).value;
+    if (prefs == null) {
+      if (kDebugMode) {
+        print('MonitoringProvider: ❌ Cannot start repeat reminders - preferences not loaded');
+      }
+      return;
+    }
+
+    if (kDebugMode) {
+      print('MonitoringProvider: 🔍 Checking repeat reminder conditions:');
+      print('  - repeatRemindersEnabled: ${prefs.repeatRemindersEnabled}');
+      print('  - zone $zone in enabledZones: ${prefs.enabledZones.contains(zone)}');
+      print('  - _currentRepeatReminderZone: $_currentRepeatReminderZone');
+      print('  - _currentRepeatReminderInterval: $_currentRepeatReminderInterval');
+      print('  - new interval: ${prefs.repeatIntervalSeconds}');
+    }
+
+    // Check if we should start/restart reminders
+    final isNewZone = _currentRepeatReminderZone != zone;
+    final intervalChanged = _currentRepeatReminderInterval != null && 
+                            _currentRepeatReminderInterval != prefs.repeatIntervalSeconds;
+    
+    // Start if repeat reminders are enabled AND this zone has alerts enabled
+    // AND either it's a new zone OR the interval changed (need to restart)
     if (prefs.repeatRemindersEnabled && 
         prefs.enabledZones.contains(zone) &&
-        _currentRepeatReminderZone != zone) {
-      final alertService = ref.read(alertServiceProvider);
-      if (kDebugMode) {
-        print('MonitoringProvider: 🔔 Starting repeat reminders for Zone $zone (interval: ${prefs.repeatIntervalSeconds}s)');
+        (isNewZone || intervalChanged)) {
+      
+      // If already running for this zone but interval changed, stop first
+      if (!isNewZone && intervalChanged) {
+        if (kDebugMode) {
+          print('MonitoringProvider: 🔄 Stopping existing timer to restart with new interval');
+        }
+        ref.read(alertServiceProvider).stopRepeatReminders();
       }
+      final alertService = ref.read(alertServiceProvider);
+      
+      if (kDebugMode) {
+        if (isNewZone) {
+          print('MonitoringProvider: ✅ Starting repeat reminders for Zone $zone');
+        } else {
+          print('MonitoringProvider: ✅ Restarting repeat reminders for Zone $zone with new interval');
+        }
+        print('  - Interval: ${prefs.repeatIntervalSeconds} seconds');
+        print('  - Alert types: ${prefs.alertTypes}');
+      }
+      
       alertService.startRepeatReminders(
         intervalSeconds: prefs.repeatIntervalSeconds,
         currentZone: zone,
         zoneEntryTime: zoneEntryTime,
         alertTypes: prefs.alertTypes,
       );
+      
       _currentRepeatReminderZone = zone;
-    } else if (kDebugMode && _currentRepeatReminderZone == zone) {
-      print('MonitoringProvider: ⏸️ Repeat reminders already running for Zone $zone, skipping restart');
+      _currentRepeatReminderInterval = prefs.repeatIntervalSeconds; // Track the interval
+    } else {
+      if (kDebugMode) {
+        print('MonitoringProvider: ⏸️ Repeat reminders NOT started - conditions not met');
+        final intervalChanged = _currentRepeatReminderInterval != null && 
+                                _currentRepeatReminderInterval != prefs.repeatIntervalSeconds;
+        if (_currentRepeatReminderZone == zone && !intervalChanged) {
+          print('  - Reason: Already running for Zone $zone with same interval');
+        } else if (!prefs.repeatRemindersEnabled) {
+          print('  - Reason: Repeat reminders disabled in preferences');
+        } else if (!prefs.enabledZones.contains(zone)) {
+          print('  - Reason: Zone $zone not in enabledZones list');
+        }
+      }
     }
   }
 
@@ -401,12 +698,19 @@ class MonitoringNotifier extends _$MonitoringNotifier {
     _heartRateTimeoutTimer?.cancel();
     _heartRateTimeoutTimer = null;
     
+    // ============================================
+    // TEMPORARY: Screenshot Mode - Cancel mock timer
+    _screenshotMockTimer?.cancel();
+    _screenshotMockTimer = null;
+    // ============================================
+    
     // Reset heart rate tracking
     _lastHeartRateTime = null;
     
     // Stop repeat reminders
     ref.read(alertServiceProvider).stopRepeatReminders();
     _currentRepeatReminderZone = null;
+    _currentRepeatReminderInterval = null;
 
     // IMPORTANT: Do NOT disconnect the BLE device
     // Keep the connection alive so user can start another workout
@@ -447,10 +751,33 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       print('MonitoringProvider: ${newState ? "🔔 Alerts ENABLED" : "🔕 Alerts DISABLED"}');
     }
     
-    // If disabling alerts, stop any active repeat reminders
+    // If disabling alerts, stop any active repeat reminders and reset timer
     if (!newState) {
       ref.read(alertServiceProvider).stopRepeatReminders();
       _currentRepeatReminderZone = null;
+      _currentRepeatReminderInterval = null;
+      // Reset zone entry time so timer starts fresh when alerts are re-enabled
+      if (state.currentZone != null) {
+        state = state.copyWith(zoneEntryTime: DateTime.now());
+      }
+    } else {
+      // Alerts re-enabled - restart reminders with fresh timer if in a valid zone
+      final prefs = ref.read(preferencesNotifierProvider).value;
+      if (prefs != null && 
+          state.currentZone != null &&
+          state.currentZone != 0 &&
+          prefs.repeatRemindersEnabled &&
+          prefs.enabledZones.contains(state.currentZone)) {
+        if (kDebugMode) {
+          print('MonitoringProvider: 🔄 Alerts re-enabled - restarting reminders with fresh timer');
+        }
+        // Reset zone entry time to now so timer starts from 0
+        final freshZoneEntryTime = DateTime.now();
+        state = state.copyWith(zoneEntryTime: freshZoneEntryTime);
+        _currentRepeatReminderZone = null; // Reset to allow restart
+        _currentRepeatReminderInterval = null;
+        _startRepeatRemindersIfEnabled(state.currentZone!, freshZoneEntryTime);
+      }
     }
   }
 
@@ -470,10 +797,33 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       print('MonitoringProvider: Alerts ${enabled ? "ENABLED" : "DISABLED"}');
     }
     
-    // If disabling alerts, stop any active repeat reminders
+    // If disabling alerts, stop any active repeat reminders and reset timer
     if (!enabled) {
       ref.read(alertServiceProvider).stopRepeatReminders();
       _currentRepeatReminderZone = null;
+      _currentRepeatReminderInterval = null;
+      // Reset zone entry time so timer starts fresh when alerts are re-enabled
+      if (state.currentZone != null) {
+        state = state.copyWith(zoneEntryTime: DateTime.now());
+      }
+    } else {
+      // Alerts re-enabled - restart reminders with fresh timer if in a valid zone
+      final prefs = ref.read(preferencesNotifierProvider).value;
+      if (prefs != null && 
+          state.currentZone != null &&
+          state.currentZone != 0 &&
+          prefs.repeatRemindersEnabled &&
+          prefs.enabledZones.contains(state.currentZone)) {
+        if (kDebugMode) {
+          print('MonitoringProvider: 🔄 Alerts re-enabled - restarting reminders with fresh timer');
+        }
+        // Reset zone entry time to now so timer starts from 0
+        final freshZoneEntryTime = DateTime.now();
+        state = state.copyWith(zoneEntryTime: freshZoneEntryTime);
+        _currentRepeatReminderZone = null; // Reset to allow restart
+        _currentRepeatReminderInterval = null;
+        _startRepeatRemindersIfEnabled(state.currentZone!, freshZoneEntryTime);
+      }
     }
   }
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_preferences.dart';
 
@@ -21,6 +22,15 @@ class PreferencesRepository {
 
       // Parse JSON and create UserPreferences
       final json = jsonDecode(jsonString) as Map<String, dynamic>;
+      
+      // Migration: Remove "sound" from alertTypes if present (removed in v1.0.0)
+      if (json.containsKey('alertTypes') && json['alertTypes'] is List) {
+        final alertTypes = (json['alertTypes'] as List)
+            .where((type) => type.toString().toLowerCase() != 'sound')
+            .toList();
+        json['alertTypes'] = alertTypes;
+      }
+      
       return UserPreferences.fromJson(json);
     } catch (e) {
       // If parsing fails, return defaults
@@ -32,22 +42,30 @@ class PreferencesRepository {
   /// Serializes UserPreferences to JSON and stores it
   Future<void> savePreferences(UserPreferences preferences) async {
     try {
-      print('PreferencesRepository: Saving to SharedPreferences...');
+      if (kDebugMode) {
+        print('PreferencesRepository: Saving to SharedPreferences...');
+      }
       final prefs = await SharedPreferences.getInstance();
       final json = preferences.toJson();
-      print('PreferencesRepository: JSON to save - alertTypes: ${json['alertTypes']}, enabledZones: ${json['enabledZones']}');
+      if (kDebugMode) {
+        print('PreferencesRepository: JSON to save - alertTypes: ${json['alertTypes']}, enabledZones: ${json['enabledZones']}');
+      }
       final jsonString = jsonEncode(json);
       await prefs.setString(_preferencesKey, jsonString);
-      print('PreferencesRepository: ✅ Successfully saved to SharedPreferences');
-      
-      // Verify it was saved
-      final savedString = prefs.getString(_preferencesKey);
-      if (savedString != null) {
-        final savedJson = jsonDecode(savedString) as Map<String, dynamic>;
-        print('PreferencesRepository: Verification - saved alertTypes: ${savedJson['alertTypes']}, enabledZones: ${savedJson['enabledZones']}');
+      if (kDebugMode) {
+        print('PreferencesRepository: ✅ Successfully saved to SharedPreferences');
+        
+        // Verify it was saved
+        final savedString = prefs.getString(_preferencesKey);
+        if (savedString != null) {
+          final savedJson = jsonDecode(savedString) as Map<String, dynamic>;
+          print('PreferencesRepository: Verification - saved alertTypes: ${savedJson['alertTypes']}, enabledZones: ${savedJson['enabledZones']}');
+        }
       }
     } catch (e) {
-      print('PreferencesRepository: ❌ Failed to save preferences: $e');
+      if (kDebugMode) {
+        print('PreferencesRepository: ❌ Failed to save preferences: $e');
+      }
       // If saving fails, throw error
       throw Exception('Failed to save preferences: $e');
     }

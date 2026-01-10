@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../data/models/user_preferences.dart';
 import '../data/models/zone_boundary.dart';
@@ -25,14 +26,16 @@ class PreferencesNotifier extends _$PreferencesNotifier {
   Future<void> updatePreferences(UserPreferences prefs) async {
     final repo = ref.read(preferencesRepositoryProvider);
     
-    print('PreferencesProvider: Saving preferences...');
-    print('  - alertsEnabled: ${prefs.alertsEnabled}');
-    print('  - alertTypes: ${prefs.alertTypes}');
-    print('  - enabledZones: ${prefs.enabledZones}');
-    print('  - repeatRemindersEnabled: ${prefs.repeatRemindersEnabled}');
-    print('  - repeatIntervalSeconds: ${prefs.repeatIntervalSeconds}');
-    print('  - alertCooldownSeconds: ${prefs.alertCooldownSeconds}');
-    print('  - restingHR: ${prefs.restingHR}, maxHR: ${prefs.maxHR}');
+    if (kDebugMode) {
+      print('PreferencesProvider: Saving preferences...');
+      print('  - alertsEnabled: ${prefs.alertsEnabled}');
+      print('  - alertTypes: ${prefs.alertTypes}');
+      print('  - enabledZones: ${prefs.enabledZones}');
+      print('  - repeatRemindersEnabled: ${prefs.repeatRemindersEnabled}');
+      print('  - repeatIntervalSeconds: ${prefs.repeatIntervalSeconds}');
+      print('  - alertCooldownSeconds: ${prefs.alertCooldownSeconds}');
+      print('  - restingHR: ${prefs.restingHR}, maxHR: ${prefs.maxHR}');
+    }
     
     // Save to SharedPreferences - this persists to disk
     await repo.savePreferences(prefs);
@@ -40,11 +43,13 @@ class PreferencesNotifier extends _$PreferencesNotifier {
     // Update the state immediately so UI reflects changes
     state = AsyncData(prefs);
     
-    print('PreferencesProvider: ✅ Preferences saved and state updated');
-    
-    // Verify it was saved by reloading
-    final saved = await repo.loadPreferences();
-    print('PreferencesProvider: Verification - loaded alertTypes: ${saved.alertTypes}, enabledZones: ${saved.enabledZones}');
+    if (kDebugMode) {
+      print('PreferencesProvider: ✅ Preferences saved and state updated');
+      
+      // Verify it was saved by reloading
+      final saved = await repo.loadPreferences();
+      print('PreferencesProvider: Verification - loaded alertTypes: ${saved.alertTypes}, enabledZones: ${saved.enabledZones}');
+    }
   }
 
   /// Update zone settings (resting HR, max HR, custom zones)

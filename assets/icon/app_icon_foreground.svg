@@ -1,7 +1,0 @@
-<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Transparent background (no rect) -->
-  
-  <!-- Heart shape (white, centered with 30% padding for adaptive icon safe zone) -->
-  <!-- Safe zone: 30% padding = 307px on each side, so heart is in 410x410 area -->
-  <path d="M512,410 C512,410 450,360 420,360 C390,360 360,390 360,410 C360,430 420,490 512,560 C604,490 664,430 664,410 C664,390 634,360 604,360 C574,360 512,410 512,410 Z" fill="#FFFFFF"/>
-</svg>

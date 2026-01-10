@@ -30,6 +30,14 @@ class AppDrawer extends StatelessWidget {
                   'assets/images/app_icon_32.png',
                   width: 32,
                   height: 32,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback to icon if image not found
+                    return const Icon(
+                      Icons.favorite,
+                      color: AppColors.zone0,
+                      size: 32,
+                    );
+                  },
                 ),
                 const SizedBox(width: 12),
                 Text(

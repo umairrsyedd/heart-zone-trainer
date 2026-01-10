@@ -19,7 +19,7 @@ class UserPreferences with _$UserPreferences {
     @Default(true) bool alertsEnabled,
     @Default([AlertType.vibration, AlertType.voice]) List<AlertType> alertTypes,
     @Default(false) bool repeatRemindersEnabled,
-    @Default(30) int repeatIntervalSeconds,
+    @Default(60) int repeatIntervalSeconds,
     @Default([0, 1, 2, 3, 4, 5]) List<int> enabledZones,
     @Default(5) int alertCooldownSeconds,
 
@@ -42,7 +42,6 @@ class UserPreferences with _$UserPreferences {
 
 /// Alert type enum for zone change notifications
 enum AlertType {
-  sound,
   vibration,
   voice,
 }

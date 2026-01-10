@@ -2,19 +2,13 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:vibration/vibration.dart';
-import 'package:audioplayers/audioplayers.dart';
 import '../models/user_preferences.dart';
 import '../models/zone_boundary.dart';
 
 /// Alert service for zone change notifications
-/// Handles sound, vibration, and voice alerts with cooldown management
+/// Handles vibration and voice alerts with cooldown management
 class AlertService {
   final FlutterTts _tts = FlutterTts();
-  AudioPlayer? _audioPlayer;
-  AudioPlayer get _audioPlayerInstance {
-    _audioPlayer ??= AudioPlayer();
-    return _audioPlayer!;
-  }
 
   DateTime? _lastAlertTime;
   Timer? _repeatTimer;
@@ -46,10 +40,13 @@ class AlertService {
   /// Trigger zone change alert
   /// Respects cooldown period to prevent alert spam
   /// Executes alerts based on the provided alert types
+  /// [isFirstTime] indicates if this is the first zone detection (app just opened)
+  /// vs an actual zone change (user transitioned from one zone to another)
   Future<void> triggerZoneChangeAlert({
     required int newZone,
     required List<AlertType> alertTypes,
     required int cooldownSeconds,
+    bool isFirstTime = false,
   }) async {
     if (kDebugMode) {
       print('AlertService: 🔔 triggerZoneChangeAlert called - Zone: $newZone, Types: $alertTypes');
@@ -74,14 +71,11 @@ class AlertService {
         print('AlertService: Executing alert type: $type');
       }
       switch (type) {
-        case AlertType.sound:
-          await _playSound();
-          break;
         case AlertType.vibration:
           await _vibrate();
           break;
         case AlertType.voice:
-          await _announceZone(newZone, isEntry: true);
+          await _announceZone(newZone, isEntry: !isFirstTime);
           break;
       }
     }
@@ -96,13 +90,33 @@ class AlertService {
     required DateTime zoneEntryTime,
     required List<AlertType> alertTypes,
   }) {
+    if (kDebugMode) {
+      print('AlertService: 🔔 startRepeatReminders called');
+      print('  - Zone: $currentZone');
+      print('  - Interval: $intervalSeconds seconds');
+      print('  - Alert types: $alertTypes');
+    }
+    
+    // Stop any existing timer first
     stopRepeatReminders();
-
+    
+    // Validate interval
+    if (intervalSeconds <= 0) {
+      if (kDebugMode) {
+        print('AlertService: ❌ Invalid interval: $intervalSeconds');
+      }
+      return;
+    }
+    
     _repeatTimer = Timer.periodic(
       Duration(seconds: intervalSeconds),
       (_) async {
         final timeInZone = DateTime.now().difference(zoneEntryTime).inSeconds;
-
+        
+        if (kDebugMode) {
+          print('AlertService: ⏰ Repeat reminder firing - Zone $currentZone, Time in zone: ${timeInZone}s');
+        }
+        
         // Execute all enabled alert types for repeat reminders
         for (final type in alertTypes) {
           switch (type) {
@@ -112,62 +126,28 @@ class AlertService {
             case AlertType.vibration:
               await _vibrate(pattern: [0, 100, 100, 100]); // Short double vibration
               break;
-            case AlertType.sound:
-              await _playSound();
-              break;
           }
         }
       },
     );
+    
+    if (kDebugMode) {
+      print('AlertService: ✅ Timer created - _repeatTimer is ${_repeatTimer != null ? "NOT NULL" : "NULL"}');
+    }
   }
 
   /// Stop repeat reminders
   /// Cancels the periodic reminder timer
   void stopRepeatReminders() {
+    if (kDebugMode) {
+      print('AlertService: 🛑 stopRepeatReminders called - Timer was ${_repeatTimer != null ? "running" : "not running"}');
+    }
     _repeatTimer?.cancel();
     _repeatTimer = null;
   }
-
-  /// Play notification sound
-  /// Uses asset audio file for zone change alerts
-  /// Note: Sound file must exist at assets/sounds/zone_change.mp3
-  Future<void> _playSound() async {
-    try {
-      if (kDebugMode) {
-        print('AlertService: 🔊 Attempting to play sound...');
-      }
-      
-      // Ensure audio player is initialized
-      final player = _audioPlayerInstance;
-      
-      // Stop any currently playing sound first
-      try {
-        await player.stop();
-      } catch (e) {
-        // Ignore if already stopped or disposed
-      }
-      
-      // Set volume to maximum
-      await player.setVolume(1.0);
-      
-      // Play the sound file
-      await player.play(AssetSource('sounds/zone_change.mp3'));
-      
-      if (kDebugMode) {
-        print('AlertService: ✅ Sound playback started');
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('AlertService: ❌ Sound playback failed: $e');
-        print('AlertService: ⚠️ Make sure:');
-        print('AlertService:   1. assets/sounds/zone_change.mp3 exists');
-        print('AlertService:   2. assets/sounds/ is declared in pubspec.yaml');
-        print('AlertService:   3. Run "flutter pub get" after adding assets');
-        print('AlertService:   4. Device volume is not muted');
-      }
-      // Don't throw - allow other alerts to continue
-    }
-  }
+  
+  /// Check if repeat reminders are currently active
+  bool get isRepeatReminderActive => _repeatTimer != null;
 
   /// Trigger haptic feedback
   /// Supports both single vibration and pattern-based vibration
@@ -203,7 +183,7 @@ class AlertService {
       
       final message = isEntry
           ? 'Entering Zone $zone'
-          : 'Zone $zone';
+          : 'Currently in Zone $zone';
       
       if (kDebugMode) {
         print('AlertService: 🗣️ Speaking: "$message"');
@@ -256,7 +236,26 @@ class AlertService {
         return;
       }
       
-      final message = 'Zone $zone for $seconds seconds';
+      // Format message based on duration
+      // Up to 60 seconds: "Zone X for X seconds"
+      // After 60 seconds: "Zone X for X minutes and Y seconds"
+      String message;
+      if (seconds <= 60) {
+        message = 'Zone $zone for $seconds seconds';
+      } else {
+        final minutes = seconds ~/ 60;
+        final remainingSeconds = seconds % 60;
+        
+        if (remainingSeconds == 0) {
+          // Exactly on minute boundary (e.g., 60, 120, 180)
+          message = 'Zone $zone for $minutes ${minutes == 1 ? 'minute' : 'minutes'}';
+        } else {
+          // Has both minutes and seconds
+          final minutesText = minutes == 1 ? 'minute' : 'minutes';
+          final secondsText = remainingSeconds == 1 ? 'second' : 'seconds';
+          message = 'Zone $zone for $minutes $minutesText and $remainingSeconds $secondsText';
+        }
+      }
       
       if (kDebugMode) {
         print('AlertService: 🗣️ Repeat reminder: "$message"');
@@ -289,8 +288,6 @@ class AlertService {
   /// Call this when the service is no longer needed
   void dispose() {
     _repeatTimer?.cancel();
-    _audioPlayer?.dispose();
-    _audioPlayer = null;
     _tts.stop();
   }
 }

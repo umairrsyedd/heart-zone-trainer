@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
@@ -22,35 +23,43 @@ class _AlertManagementScreenState
   bool _alertsEnabled = true;
   List<AlertType> _alertTypes = [AlertType.vibration, AlertType.voice];
   bool _repeatRemindersEnabled = false;
-  int _repeatIntervalSeconds = 30;
+  int _repeatIntervalSeconds = 60;
   List<int> _enabledZones = [0, 1, 2, 3, 4, 5];
   int _alertCooldownSeconds = 5;
 
   @override
   void initState() {
     super.initState();
-    print('AlertManagement: ===============================');
-    print('AlertManagement: Screen INIT');
-    print('AlertManagement: ===============================');
+    if (kDebugMode) {
+      print('AlertManagement: ===============================');
+      print('AlertManagement: Screen INIT');
+      print('AlertManagement: ===============================');
+    }
     
     // Use post frame callback to ensure provider is initialized
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      print('AlertManagement: Post frame callback - loading settings');
+      if (kDebugMode) {
+        print('AlertManagement: Post frame callback - loading settings');
+      }
       await _loadCurrentSettings();
       
       // Verify what we loaded
-      print('AlertManagement: After load - local state:');
-      print('  - _alertsEnabled: $_alertsEnabled');
-      print('  - _alertTypes: $_alertTypes');
-      print('  - _enabledZones: $_enabledZones');
+      if (kDebugMode) {
+        print('AlertManagement: After load - local state:');
+        print('  - _alertsEnabled: $_alertsEnabled');
+        print('  - _alertTypes: $_alertTypes');
+        print('  - _enabledZones: $_enabledZones');
+      }
     });
   }
 
   @override
   void dispose() {
-    print('AlertManagement: ===============================');
-    print('AlertManagement: Screen DISPOSE');
-    print('AlertManagement: ===============================');
+    if (kDebugMode) {
+      print('AlertManagement: ===============================');
+      print('AlertManagement: Screen DISPOSE');
+      print('AlertManagement: ===============================');
+    }
     super.dispose();
   }
 
@@ -60,13 +69,15 @@ class _AlertManagementScreenState
       // This ensures we wait for SharedPreferences to load before reading values
       final prefs = await ref.read(preferencesNotifierProvider.future);
       
-      print('AlertManagement: 📥 Loading settings from provider:');
-      print('  - alertsEnabled: ${prefs.alertsEnabled}');
-      print('  - alertTypes: ${prefs.alertTypes}');
-      print('  - enabledZones: ${prefs.enabledZones}');
-      print('  - repeatRemindersEnabled: ${prefs.repeatRemindersEnabled}');
-      print('  - repeatIntervalSeconds: ${prefs.repeatIntervalSeconds}');
-      print('  - alertCooldownSeconds: ${prefs.alertCooldownSeconds}');
+      if (kDebugMode) {
+        print('AlertManagement: 📥 Loading settings from provider:');
+        print('  - alertsEnabled: ${prefs.alertsEnabled}');
+        print('  - alertTypes: ${prefs.alertTypes}');
+        print('  - enabledZones: ${prefs.enabledZones}');
+        print('  - repeatRemindersEnabled: ${prefs.repeatRemindersEnabled}');
+        print('  - repeatIntervalSeconds: ${prefs.repeatIntervalSeconds}');
+        print('  - alertCooldownSeconds: ${prefs.alertCooldownSeconds}');
+      }
       
       if (mounted) {
         setState(() {
@@ -78,10 +89,14 @@ class _AlertManagementScreenState
           _enabledZones = List<int>.from(prefs.enabledZones);
           _alertCooldownSeconds = prefs.alertCooldownSeconds;
         });
-        print('AlertManagement: ✅ Settings loaded and applied to UI');
+        if (kDebugMode) {
+          print('AlertManagement: ✅ Settings loaded and applied to UI');
+        }
       }
     } catch (e) {
-      print('AlertManagement: ❌ Error loading settings: $e');
+      if (kDebugMode) {
+        print('AlertManagement: ❌ Error loading settings: $e');
+      }
       // Keep defaults if error
     }
   }
@@ -95,7 +110,9 @@ class _AlertManagementScreenState
       final newAlertTypes = List<AlertType>.from(_alertTypes);
       final newEnabledZones = List<int>.from(_enabledZones);
       
-      print('AlertManagement: Auto-saving - alertsEnabled: $_alertsEnabled, alertTypes: $newAlertTypes, enabledZones: $newEnabledZones');
+      if (kDebugMode) {
+        print('AlertManagement: Auto-saving - alertsEnabled: $_alertsEnabled, alertTypes: $newAlertTypes, enabledZones: $newEnabledZones');
+      }
       
       await ref.read(preferencesNotifierProvider.notifier).updatePreferences(
             current.copyWith(
@@ -107,9 +124,13 @@ class _AlertManagementScreenState
               alertCooldownSeconds: _alertCooldownSeconds,
             ),
           );
-      print('AlertManagement: ✅ Auto-saved successfully');
+      if (kDebugMode) {
+        print('AlertManagement: ✅ Auto-saved successfully');
+      }
     } catch (e) {
-      print('AlertManagement: ❌ Auto-save failed: $e');
+      if (kDebugMode) {
+        print('AlertManagement: ❌ Auto-save failed: $e');
+      }
       // Don't show error to user for auto-save, just log it
     }
   }
@@ -125,7 +146,9 @@ class _AlertManagementScreenState
         _alertTypes = _alertTypes.where((t) => t != type).toList();
       }
     });
-    print('AlertManagement: Toggled alert type $type to $enabled, new list: $_alertTypes');
+    if (kDebugMode) {
+      print('AlertManagement: Toggled alert type $type to $enabled, new list: $_alertTypes');
+    }
     // Auto-save immediately
     _autoSave();
   }
@@ -141,7 +164,9 @@ class _AlertManagementScreenState
         _enabledZones = _enabledZones.where((z) => z != zone).toList();
       }
     });
-    print('AlertManagement: Toggled zone $zone to $enabled, new list: $_enabledZones');
+    if (kDebugMode) {
+      print('AlertManagement: Toggled zone $zone to $enabled, new list: $_enabledZones');
+    }
     // Auto-save immediately
     _autoSave();
   }
@@ -249,20 +274,19 @@ class _AlertManagementScreenState
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Choose how you want to be notified: vibration or voice announcement',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Opacity(
                     opacity: _alertsEnabled ? 1.0 : 0.5,
                     child: Column(
                       children: [
-                        AlertOptionTile(
-                          title: 'Sound',
-                          description: 'Play an audible tone when zone changes',
-                          value: _alertTypes.contains(AlertType.sound),
-                          onChanged: (value) =>
-                              _toggleAlertType(AlertType.sound, value),
-                          enabled: _alertsEnabled,
-                        ),
-                        const SizedBox(height: 12),
                         AlertOptionTile(
                           title: 'Vibration',
                           description: 'Vibrate your device when zone changes',

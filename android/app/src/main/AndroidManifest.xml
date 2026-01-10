@@ -43,7 +43,8 @@
     <application
         android:label="Heart Zone Trainer"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         
         <!-- Foreground service for BLE -->
         <service
@@ -92,5 +93,14 @@
         <!-- Bluetooth device queries for Android 12+ (API 31+)
              Required to query paired/bonded Bluetooth devices -->
         <package android:name="android" />
+        <!-- URL queries for url_launcher (Android 11+) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="http" />
+        </intent>
     </queries>
 </manifest>

@@ -1,5 +1,5 @@
 name: hr_zone_monitor
-description: Real-time heart rate zone tracking with Bluetooth heart rate monitors
+description: Real-time heart rate zone tracking with Bluetooth heart rate monitors. Train smarter.
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: "none" # Remove this line if you wish to publish to pub.dev
@@ -48,10 +48,12 @@ dependencies:
   # Audio/Haptics
   flutter_tts: ^3.8.0 # Text-to-speech for voice announcements
   vibration: ^3.1.5 # Haptic feedback
-  audioplayers: ^5.2.0 # Sound playback
 
   # UI Components
   flutter_animate: ^4.3.0 # Smooth animations
+
+  # URL Launcher
+  url_launcher: ^6.2.5 # Open URLs in browser
 
   # Utilities
   equatable: ^2.0.5 # Value equality for state objects
@@ -83,7 +85,6 @@ flutter:
   assets:
     - assets/icon/
     - assets/images/
-    - assets/sounds/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -115,9 +116,9 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: false  # iOS not in scope yet
-  image_path: "assets/images/app_icon_1024.png"
+  image_path: "assets/icon/app_icon.png"
   # Adaptive icon for Android 8.0+ (recommended)
   adaptive_icon_background: "#1B1F24"  # Dark background color matching the icon
-  adaptive_icon_foreground: "assets/images/app_icon_1024.png"
+  adaptive_icon_foreground: "assets/icon/app_icon.png"
   # Minimum SDK
   min_sdk_android: 21
