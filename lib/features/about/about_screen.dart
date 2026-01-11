@@ -125,77 +125,32 @@ class AboutScreen extends StatelessWidget {
 
             const SizedBox(height: 48),
 
-            // Links
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                TextButton(
-                  onPressed: () async {
-                    final uri = Uri.parse('https://umairrsyedd.github.io/heart-zone-trainer-privacy/');
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri, mode: LaunchMode.externalApplication);
-                    } else {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Unable to open Privacy Policy'),
-                            backgroundColor: AppColors.warning,
-                          ),
-                        );
-                      }
+            // Privacy Policy Link (centered)
+            Center(
+              child: TextButton(
+                onPressed: () async {
+                  final uri = Uri.parse('https://umairrsyedd.github.io/heart-zone-trainer-privacy/');
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Unable to open Privacy Policy'),
+                          backgroundColor: AppColors.warning,
+                        ),
+                      );
                     }
-                  },
-                  child: Text(
-                    'Privacy Policy',
-                    style: TextStyle(
-                      color: AppColors.zone0,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-                Text(
-                  ' | ',
+                  }
+                },
+                child: Text(
+                  'Privacy Policy',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: AppColors.zone0,
                     fontSize: 14,
                   ),
                 ),
-                TextButton(
-                  onPressed: () async {
-                    // Create mailto URI with pre-filled subject and body
-                    final email = 'umairrsyedd@gmail.com';
-                    final subject = Uri.encodeComponent('Heart Zone Trainer - Feedback');
-                    final body = Uri.encodeComponent(
-                      'Hi,\n\n'
-                      'App Version: 1.0.0\n\n'
-                      'Please share your feedback, suggestions, or report any issues:\n\n'
-                      '[Your feedback here]\n\n'
-                      'Thank you!',
-                    );
-                    final uri = Uri.parse('mailto:$email?subject=$subject&body=$body');
-                    
-                    if (await canLaunchUrl(uri)) {
-                      await launchUrl(uri);
-                    } else {
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('No email app found. Please contact umairrsyedd@gmail.com'),
-                            backgroundColor: AppColors.warning,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: Text(
-                    'Send Feedback',
-                    style: TextStyle(
-                      color: AppColors.zone0,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
 
             const SizedBox(height: 64),

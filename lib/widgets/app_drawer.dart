@@ -27,7 +27,7 @@ class AppDrawer extends StatelessWidget {
             child: Row(
               children: [
                 Image.asset(
-                  'assets/images/app_icon_32.png',
+                  'assets/images/app_icon_128.png',
                   width: 32,
                   height: 32,
                   errorBuilder: (context, error, stackTrace) {

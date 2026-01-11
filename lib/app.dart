@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants/app_strings.dart';
@@ -20,6 +21,8 @@ class App extends ConsumerStatefulWidget {
 }
 
 class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
+  bool _wasMonitoringBeforeBackground = false;
+
   @override
   void initState() {
     super.initState();
@@ -43,7 +46,7 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
       // App is being terminated - always remove notification
       _handleAppTerminated();
     } else if (state == AppLifecycleState.resumed) {
-      // App came back to foreground - refresh notification if monitoring
+      // App came back to foreground - restart monitoring if needed
       _handleAppResumed();
     }
   }
@@ -56,16 +59,23 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
     // Get current monitoring state
     final monitoringState = ref.read(monitoringNotifierProvider);
     
-    // Only remove notification if:
-    // 1. Background monitoring is disabled, AND
-    // 2. Device is connected (monitoring was active)
+    // Track if monitoring was active before going to background
+    _wasMonitoringBeforeBackground = monitoringState.isMonitoring && monitoringState.isConnected;
+    
+    // If background monitoring is disabled, stop monitoring and notification
     if (prefs != null && 
         !prefs.backgroundMonitoringEnabled && 
+        monitoringState.isMonitoring && 
         monitoringState.isConnected) {
-      final notificationService = ref.read(notificationServiceProvider);
-      notificationService.stopNotification();
+      // Stop monitoring (this will also stop the notification)
+      final monitoringNotifier = ref.read(monitoringNotifierProvider.notifier);
+      monitoringNotifier.stopMonitoring();
+      
+      if (kDebugMode) {
+        print('App: Background monitoring disabled - stopped monitoring and notification');
+      }
     }
-    // If background monitoring is enabled, keep the notification
+    // If background monitoring is enabled, keep monitoring and notification active
   }
 
   void _handleAppTerminated() {
@@ -76,12 +86,25 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
 
   void _handleAppResumed() {
     // App came back to foreground
-    // If we're still monitoring, ensure notification is showing
     final monitoringState = ref.read(monitoringNotifierProvider);
+    final prefsAsync = ref.read(preferencesNotifierProvider);
+    final prefs = prefsAsync.value;
     
-    if (monitoringState.isMonitoring && monitoringState.isConnected) {
+    // If monitoring was stopped due to background monitoring being disabled,
+    // restart it now that we're back in foreground
+    if (_wasMonitoringBeforeBackground && 
+        monitoringState.isConnected && 
+        !monitoringState.isMonitoring) {
+      // Restart monitoring (fire and forget - it's async but we don't need to wait)
+      final monitoringNotifier = ref.read(monitoringNotifierProvider.notifier);
+      monitoringNotifier.startMonitoring();
+      
+      if (kDebugMode) {
+        print('App: Resumed - restarted monitoring (was active before background)');
+      }
+    } else if (monitoringState.isMonitoring && monitoringState.isConnected) {
+      // Monitoring is still active - refresh notification
       final notificationService = ref.read(notificationServiceProvider);
-      // Refresh notification to ensure it's still showing
       if (monitoringState.currentBPM != null && monitoringState.currentZone != null) {
         // Re-show with current data
         notificationService.refreshNotification(
@@ -97,6 +120,9 @@ class _AppState extends ConsumerState<App> with WidgetsBindingObserver {
         );
       }
     }
+    
+    // Reset flag
+    _wasMonitoringBeforeBackground = false;
   }
 
   String _getZoneName(int zone) {
