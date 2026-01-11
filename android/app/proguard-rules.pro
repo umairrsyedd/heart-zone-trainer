@@ -24,3 +24,9 @@
     native <methods>;
 }
 
+# Suppress Play Core warnings (Flutter references these but we don't use deferred components)
+-dontwarn com.google.android.play.core.**
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
+
