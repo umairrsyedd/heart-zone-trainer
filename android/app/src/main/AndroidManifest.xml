@@ -44,12 +44,6 @@
         android:label="Heart Zone Trainer"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
-        
-        <!-- Foreground service for BLE -->
-        <service
-            android:name="com.umair.hrzmonitor.BLEForegroundService"
-            android:foregroundServiceType="connectedDevice"
-            android:exported="false" />
             
         <activity
             android:name=".MainActivity"
@@ -73,6 +67,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        
+        <!-- Heart Rate Monitoring Foreground Service -->
+        <service
+            android:name=".HRMonitoringService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice"
+            android:stopWithTask="true" />
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

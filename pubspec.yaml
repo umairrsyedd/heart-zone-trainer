@@ -55,6 +55,9 @@ dependencies:
   # URL Launcher
   url_launcher: ^6.2.5 # Open URLs in browser
 
+  # Notifications
+  flutter_local_notifications: ^17.2.0 # Persistent notifications for HR monitoring
+
   # Utilities
   equatable: ^2.0.5 # Value equality for state objects
   freezed_annotation: ^2.4.0 # Immutable data classes

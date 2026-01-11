@@ -1,12 +1,15 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import '../core/constants/app_strings.dart';
 import '../core/utils/hr_zone_calculator.dart';
+import '../core/utils/permission_service.dart';
 import '../data/models/monitoring_state.dart';
 import '../data/services/alert_service.dart';
 import '../data/services/ble_service.dart';
 import 'alert_provider.dart';
 import 'ble_provider.dart';
+import 'notification_provider.dart';
 import 'preferences_provider.dart';
 import 'zone_provider.dart';
 
@@ -198,6 +201,34 @@ class MonitoringNotifier extends _$MonitoringNotifier {
             print('MonitoringProvider: ✅ Updating state to: $connectionState, device: $deviceName');
           }
           state = newState;
+
+          // Update notification based on connection state (fire and forget)
+          final notificationService = ref.read(notificationServiceProvider);
+          final finalDeviceName = deviceName ?? 'HR Monitor';
+          
+          if (state.isMonitoring) {
+            switch (connectionState) {
+              case ConnectionState.connecting:
+                notificationService.updateConnecting(deviceName: finalDeviceName);
+                break;
+              case ConnectionState.connected:
+                // If we have HR data, updateWithHeartRate will be called from _handleHeartRateUpdate
+                // Otherwise, show waiting message
+                if (state.currentBPM == null) {
+                  notificationService.updateConnectedNoData(deviceName: finalDeviceName);
+                }
+                break;
+              case ConnectionState.reconnecting:
+                notificationService.updateReconnecting(deviceName: finalDeviceName);
+                break;
+              case ConnectionState.disconnected:
+                notificationService.updateDeviceDisconnected(deviceName: finalDeviceName);
+                break;
+              case ConnectionState.scanning:
+                // No notification update for scanning
+                break;
+            }
+          }
         }
       },
       onError: (error) {
@@ -232,6 +263,18 @@ class MonitoringNotifier extends _$MonitoringNotifier {
   /// Uses mock service if mock mode is enabled
   /// For real BLE, device must be connected (checked by UI before calling)
   void startMonitoring() async {
+    // Request notification permission if needed (Android 13+)
+    final hasPermission = await PermissionService.hasNotificationPermission();
+    if (!hasPermission) {
+      await PermissionService.requestNotificationPermission();
+    }
+
+    // Start notification service
+    final notificationService = ref.read(notificationServiceProvider);
+    await notificationService.startNotification();
+    final deviceName = state.connectedDeviceName ?? 'HR Monitor';
+    notificationService.updateConnecting(deviceName: deviceName);
+
     // Cancel any existing subscriptions first
     _heartRateSubscription?.cancel();
 
@@ -317,6 +360,10 @@ class MonitoringNotifier extends _$MonitoringNotifier {
       isMonitoring: true,
       lastAppOpenTime: DateTime.now(),
     );
+
+    // Update notification - connected but waiting for HR data
+    final finalDeviceName = state.connectedDeviceName ?? 'HR Monitor';
+    notificationService.updateConnectedNoData(deviceName: finalDeviceName);
 
     // ============================================
     // TEMPORARY: Screenshot Mode - Start mock BPM injection timer
@@ -491,6 +538,19 @@ class MonitoringNotifier extends _$MonitoringNotifier {
     );
     
     state = newState;
+
+    // Update notification with heart rate data
+    if (newZone != null && state.isMonitoring) {
+      final notificationService = ref.read(notificationServiceProvider);
+      final zoneName = AppStrings.getZoneName(newZone);
+      final deviceName = state.connectedDeviceName ?? 'HR Monitor';
+      notificationService.updateWithHeartRate(
+        bpm: bpm,
+        zone: newZone,
+        zoneName: zoneName,
+        deviceName: deviceName,
+      );
+    }
   }
 
   /// Start periodic check for heart rate timeout
@@ -685,6 +745,10 @@ class MonitoringNotifier extends _$MonitoringNotifier {
     if (kDebugMode) {
       print('Provider: Stop monitoring called');
     }
+    
+    // Stop notification service
+    final notificationService = ref.read(notificationServiceProvider);
+    notificationService.stopNotification();
     
     // Cancel heart rate subscription (stop listening to data)
     // This stops receiving heart rate updates, but BLE connection stays active
