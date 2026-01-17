@@ -18,10 +18,11 @@ class UserPreferences with _$UserPreferences {
     // Alert Settings
     @Default(true) bool alertsEnabled,
     @Default([AlertType.vibration, AlertType.voice]) List<AlertType> alertTypes,
-    @Default(false) bool repeatRemindersEnabled,
-    @Default(60) int repeatIntervalSeconds,
+    @Default(true) bool repeatRemindersEnabled,
+    @Default(30) int repeatIntervalSeconds,
     @Default([0, 1, 2, 3, 4, 5]) List<int> enabledZones,
-    @Default(5) int alertCooldownSeconds,
+    @Default(true) bool alertCooldownEnabled,
+    @Default(10) int alertCooldownSeconds,
 
     // General Settings
     @Default(true) bool backgroundMonitoringEnabled,

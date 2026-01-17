@@ -19,7 +19,7 @@ part 'monitoring_provider.g.dart';
 // TEMPORARY: Screenshot Mode - Set to true to force 160 BPM for Zone 3 screenshot
 // TODO: Set back to false after taking screenshot
 const bool _SCREENSHOT_MODE = false;
-const int _SCREENSHOT_BPM = 184;
+const int _SCREENSHOT_BPM = 165;
 // ============================================
 
 /// Provider for current BPM value from monitoring state
@@ -223,6 +223,8 @@ class MonitoringNotifier extends _$MonitoringNotifier {
                 break;
               case ConnectionState.disconnected:
                 notificationService.updateDeviceDisconnected(deviceName: finalDeviceName);
+                // Reset cooldown state when disconnected
+                ref.read(alertServiceProvider).resetCooldownState();
                 break;
               case ConnectionState.scanning:
                 // No notification update for scanning
@@ -467,9 +469,12 @@ class MonitoringNotifier extends _$MonitoringNotifier {
         final prefs = ref.read(preferencesNotifierProvider).value;
         if (prefs != null && prefs.enabledZones.contains(newZone)) {
           final alertService = ref.read(alertServiceProvider);
+          final zoneName = AppStrings.getZoneName(newZone);
           alertService.triggerZoneChangeAlert(
             newZone: newZone,
+            zoneName: zoneName,
             alertTypes: prefs.alertTypes,
+            cooldownEnabled: prefs.alertCooldownEnabled,
             cooldownSeconds: prefs.alertCooldownSeconds,
             isFirstTime: true, // This is first-time detection, not an actual zone change
           );
@@ -627,9 +632,14 @@ class MonitoringNotifier extends _$MonitoringNotifier {
         print('MonitoringProvider: 🔔 Zone change alert: $fromZone → $toZone');
       }
       
+      // Get zone name for announcement
+      final zoneName = AppStrings.getZoneName(toZone);
+      
       alertService.triggerZoneChangeAlert(
         newZone: toZone,
+        zoneName: zoneName,
         alertTypes: prefs.alertTypes,
+        cooldownEnabled: prefs.alertCooldownEnabled,
         cooldownSeconds: prefs.alertCooldownSeconds,
       );
 
@@ -772,7 +782,9 @@ class MonitoringNotifier extends _$MonitoringNotifier {
     _lastHeartRateTime = null;
     
     // Stop repeat reminders
-    ref.read(alertServiceProvider).stopRepeatReminders();
+    final alertService = ref.read(alertServiceProvider);
+    alertService.stopRepeatReminders();
+    alertService.cancelCooldown();
     _currentRepeatReminderZone = null;
     _currentRepeatReminderInterval = null;
 

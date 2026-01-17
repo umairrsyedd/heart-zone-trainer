@@ -25,7 +25,8 @@ class _AlertManagementScreenState
   bool _repeatRemindersEnabled = false;
   int _repeatIntervalSeconds = 60;
   List<int> _enabledZones = [0, 1, 2, 3, 4, 5];
-  int _alertCooldownSeconds = 5;
+  bool _alertCooldownEnabled = true;
+  int _alertCooldownSeconds = 10;
 
   @override
   void initState() {
@@ -87,6 +88,7 @@ class _AlertManagementScreenState
           _repeatRemindersEnabled = prefs.repeatRemindersEnabled;
           _repeatIntervalSeconds = prefs.repeatIntervalSeconds;
           _enabledZones = List<int>.from(prefs.enabledZones);
+          _alertCooldownEnabled = prefs.alertCooldownEnabled;
           _alertCooldownSeconds = prefs.alertCooldownSeconds;
         });
         if (kDebugMode) {
@@ -121,6 +123,7 @@ class _AlertManagementScreenState
               repeatRemindersEnabled: _repeatRemindersEnabled,
               repeatIntervalSeconds: _repeatIntervalSeconds,
               enabledZones: newEnabledZones,
+              alertCooldownEnabled: _alertCooldownEnabled,
               alertCooldownSeconds: _alertCooldownSeconds,
             ),
           );
@@ -396,7 +399,7 @@ class _AlertManagementScreenState
                             activeColor: AppColors.zone2,
                           ),
                           Text(
-                            'You will hear "Zone 2 for $_repeatIntervalSeconds seconds" at your selected interval',
+                            'You will hear "Zone 2 for $_repeatIntervalSeconds seconds" and so on',
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12,
@@ -517,61 +520,97 @@ class _AlertManagementScreenState
                           ),
                         ),
                         const SizedBox(height: 8),
+                        // Enable/Disable Toggle Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Enable Alert Cooldown',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            Switch(
+                              value: _alertCooldownEnabled,
+                              onChanged: _alertsEnabled
+                                  ? (value) {
+                                      setState(() {
+                                        _alertCooldownEnabled = value;
+                                      });
+                                      _autoSave();
+                                    }
+                                  : null,
+                              activeColor: AppColors.zone2,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        // Description
                         Text(
-                          'Minimum time between zone change alerts. Prevents rapid repeated alerts when your heart rate hovers near a zone boundary.',
+                          _alertCooldownEnabled
+                              ? 'Prevents rapid repeated alerts when your heart rate hovers near a zone boundary.'
+                              : 'Every zone change will trigger an alert immediately.',
+                              
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 14,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Opacity(
-                          opacity: _alertsEnabled ? 1.0 : 0.5,
-                          child: Column(
+                        // Cooldown Duration Slider (only show when enabled)
+                        if (_alertCooldownEnabled && _alertsEnabled) ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Cooldown:',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  Text(
-                                    '$_alertCooldownSeconds seconds',
-                                    style: const TextStyle(
-                                      color: AppColors.textPrimary,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                'Cooldown Duration',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
                               ),
-                              Slider(
-                                value: _alertCooldownSeconds.toDouble(),
-                                min: 0,
-                                max: 30,
-                                divisions: 30,
-                                label: '$_alertCooldownSeconds seconds',
-                                onChanged: _alertsEnabled
-                                    ? (value) {
-                                        setState(() {
-                                          _alertCooldownSeconds = value.round();
-                                        });
-                                        // Auto-save after a short delay to debounce slider changes
-                                        Future.delayed(const Duration(milliseconds: 500), () {
-                                          if (mounted) _autoSave();
-                                        });
-                                      }
-                                    : null,
-                                activeColor: AppColors.zone2,
+                              Text(
+                                '$_alertCooldownSeconds seconds',
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 8),
+                          Slider(
+                            value: _alertCooldownSeconds.toDouble(),
+                            min: 5,
+                            max: 30,
+                            divisions: 5, // 5, 10, 15, 20, 25, 30
+                            label: '$_alertCooldownSeconds seconds',
+                            onChanged: _alertsEnabled
+                                ? (value) {
+                                    setState(() {
+                                      _alertCooldownSeconds = value.round();
+                                    });
+                                    // Auto-save after a short delay to debounce slider changes
+                                    Future.delayed(const Duration(milliseconds: 500), () {
+                                      if (mounted) _autoSave();
+                                    });
+                                  }
+                                : null,
+                            activeColor: AppColors.zone2,
+                          ),
+                          // Helper text
+                          Text(
+                            'After a zone alert, additional zone changes within $_alertCooldownSeconds seconds are tracked silently. Once the cooldown ends, you\'ll hear "Currently in Zone X" to confirm your final zone.',
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
